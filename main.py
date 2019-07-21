@@ -33,13 +33,10 @@ def generate_workout(previous_workouts, workout_settings):
     ]
 
 def generate_next_lift(previous_workouts, lift_type, workout_settings):
-
     # get previous workouts
     previous_lifts_for_type = select_lift_type(lift_type, previous_workouts)
     failed_lift = lambda l: any(s['target_reps'] != s['actual_reps'] for s in l['sets'])
-
-    # should get from config
-    increment = 5
+    increment = workout_settings.get('increment', {}).get(lift_type, 5)
 
     # if no previous workout:
     if not previous_lifts_for_type:
@@ -66,8 +63,9 @@ def generate_next_lift(previous_workouts, lift_type, workout_settings):
 
     # TODO: handle 3x3 and 1RM/2backoff
     number_of_sets = 3 if lift_type != DEADLIFT else 1
-    number_of_reps = 5
-    return generate_lift(lift_type, number_of_sets, number_of_reps, next_weight)
+    number_of_reps = workout_settings.get('reps', {}).get(lift_type, 5)
+    backoff = workout_settings.get('backoff', {}).get(lift_type, False)
+    return generate_lift(lift_type, number_of_sets, number_of_reps, next_weight, backoff)
 
 
 def select_lift_type(lift_type, previous_workouts):
@@ -98,12 +96,19 @@ def completed_last_workout(last_workout):
 
     return completed
 
-def generate_lift(lift_type, sets, reps, weight):
+def generate_lift(lift_type, sets, reps, weight, backoff):
+    if sets == 1:
+        weights = [weight]
+    elif backoff:
+        next_weight = 5 * round((weight*.9)/5)
+        # sets will be 3 or 1
+        weights = [weight, next_weight, next_weight]
+    else:
+        weights = [weight]*sets
+
+    sets = [{'target_reps': reps, 'weight': w} for w in weights]
     return {
          'lift_type': lift_type,
-         'sets': [
-             {'target_reps':reps, 'weight':weight}
-             for i in range(sets)
-         ]
+         'sets': sets
     }
 
