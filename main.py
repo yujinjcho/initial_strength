@@ -3,8 +3,16 @@ from pprint import pprint
 default_weight = 45
 default_deadlift_weight = 95
 
+DEFAULT_SETS = 3
+DEADLIFT_SETS = 1
+
+DELOAD_PERCENT = .8
+BACKOFF_PERCENT = .9
+
 DEADLIFT = 'deadlift'
 SQUAT = 'squat'
+LIGHT_SQUAT = 'light_squat'
+BOTH_SQUAT = 'both_squat'
 PRESS = 'press'
 BENCH = 'bench'
 CHINUP = 'chinup'
@@ -36,7 +44,9 @@ def generate_next_lift(previous_workouts, lift_type, workout_settings):
     # get previous workouts
     previous_lifts_for_type = select_lift_type(lift_type, previous_workouts)
     failed_lift = lambda l: any(s['target_reps'] != s['actual_reps'] for s in l['sets'])
+
     increment = workout_settings.get('increment', {}).get(lift_type, 5)
+    min_weight_unit = min(workout_settings.get('weight', [2.5]))
 
     # if no previous workout:
     if not previous_lifts_for_type:
@@ -57,15 +67,24 @@ def generate_next_lift(previous_workouts, lift_type, workout_settings):
         failed_prior = failed_lift(previous_lifts_for_type[1])
 
         if failed_last and failed_prior:
-            next_weight = 5 * round((next_weight*.8)/5)
+            next_weight = min_weight_unit * round((next_weight * DELOAD_PERCENT)/min_weight_unit)
         elif not failed_last:
             next_weight += increment
 
-    # TODO: handle 3x3 and 1RM/2backoff
-    number_of_sets = 3 if lift_type != DEADLIFT else 1
-    number_of_reps = workout_settings.get('reps', {}).get(lift_type, 5)
-    backoff = workout_settings.get('backoff', {}).get(lift_type, False)
-    return generate_lift(lift_type, number_of_sets, number_of_reps, next_weight, backoff)
+    # handle light squats since special case
+    if should_do_light_squat(previous_workouts, lift_type, workout_settings):
+        lift_type = LIGHT_SQUAT
+        next_weight = min_weight_unit * round((next_weight * DELOAD_PERCENT)/min_weight_unit)
+
+    lift_config = {
+        'lift_type': lift_type,
+        'weight': next_weight,
+        'number_of_sets': DEFAULT_SETS if lift_type != DEADLIFT else DEADLIFT_SETS,
+        'number_of_reps': workout_settings.get('reps', {}).get(lift_type, 5),
+        'is_backoff': workout_settings.get('backoff', {}).get(lift_type, False),
+        'min_weight_unit': min_weight_unit
+    }
+    return generate_lift(lift_config)
 
 
 def select_lift_type(lift_type, previous_workouts):
@@ -77,6 +96,8 @@ def select_lift_type(lift_type, previous_workouts):
         for lift in workout['workout']:
             if lift['lift_type'] == lift_type:
                 last_workouts.append(lift)
+            elif lift['lift_type'] in [SQUAT, LIGHT_SQUAT] and lift_type == BOTH_SQUAT:
+                last_workouts.append(lift)
             elif lift['lift_type'] in [PRESS, BENCH] and lift_type == 'push':
                 last_workouts.append(lift)
             elif lift['lift_type'] in [DEADLIFT, CLEAN, CHINUP] and lift_type == 'pull':
@@ -84,6 +105,21 @@ def select_lift_type(lift_type, previous_workouts):
 
     return last_workouts
 
+def should_do_light_squat(previous_workouts, lift_type, workout_settings):
+    if not lift_type == SQUAT:
+        return False
+
+    if not workout_settings.get('lifts', {}).get(LIGHT_SQUAT, False):
+        return False
+
+    squat_workouts = select_lift_type(BOTH_SQUAT, previous_workouts)
+    if len(squat_workouts) < 2:
+        return False
+
+    if any([x['lift_type'] == LIGHT_SQUAT for x in squat_workouts[:2]]):
+        return False
+
+    return True
 
 def completed_last_workout(last_workout):
     if last_workout:
@@ -96,19 +132,21 @@ def completed_last_workout(last_workout):
 
     return completed
 
-def generate_lift(lift_type, sets, reps, weight, backoff):
-    if sets == 1:
+def generate_lift(lift_config):
+    weight = lift_config['weight']
+
+    if lift_config['number_of_sets'] == 1:
         weights = [weight]
-    elif backoff:
-        next_weight = 5 * round((weight*.9)/5)
+    elif lift_config['is_backoff']:
+        next_weight = 5 * round((weight * BACKOFF_PERCENT)/5)
         # sets will be 3 or 1
         weights = [weight, next_weight, next_weight]
     else:
-        weights = [weight]*sets
+        weights = [weight] * lift_config['number_of_sets']
 
-    sets = [{'target_reps': reps, 'weight': w} for w in weights]
+    sets = [{'target_reps': lift_config['number_of_reps'], 'weight': w} for w in weights]
     return {
-         'lift_type': lift_type,
+         'lift_type': lift_config['lift_type'],
          'sets': sets
     }
 

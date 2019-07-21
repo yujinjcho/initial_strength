@@ -6,13 +6,13 @@ class Test(unittest.TestCase):
     def test_initial_workout(self):
         workout = main.generate_workout([], {})
 
-        squat = [x for x in reversed(workout) if x['lift_type'] == 'squat'][0]
+        squat = [x for x in workout if x['lift_type'] == 'squat'][0]
         self.assertEqual(squat['sets'][0]['weight'], 45)
 
-        bench = [x for x in reversed(workout) if x['lift_type'] == 'bench'][0]
+        bench = [x for x in workout if x['lift_type'] == 'bench'][0]
         self.assertEqual(bench['sets'][0]['weight'], 45)
 
-        dl = [x for x in reversed(workout) if x['lift_type'] == 'deadlift'][0]
+        dl = [x for x in workout if x['lift_type'] == 'deadlift'][0]
         self.assertEqual(dl['sets'][0]['weight'], 95)
         self.assertEqual(len(dl['sets']), 1)
 
@@ -21,17 +21,17 @@ class Test(unittest.TestCase):
         previous_workouts = mock_successful_workouts()
         workout = main.generate_workout(previous_workouts, {})
 
-        squat = [x for x in reversed(workout) if x['lift_type'] == 'squat'][0]
+        squat = [x for x in workout if x['lift_type'] == 'squat'][0]
         self.assertEqual(squat['sets'][0]['weight'], 160)
 
-        bench = [x for x in reversed(workout) if x['lift_type'] == 'bench'][0]
+        bench = [x for x in workout if x['lift_type'] == 'bench'][0]
         self.assertEqual(bench['sets'][0]['weight'], 125)
 
-        dl = [x for x in reversed(workout) if x['lift_type'] == 'deadlift'][0]
+        dl = [x for x in workout if x['lift_type'] == 'deadlift'][0]
         self.assertEqual(dl['sets'][0]['weight'], 180)
         self.assertEqual(len(dl['sets']), 1)
 
-        press_workouts = [x for x in reversed(workout) if x['lift_type'] == 'press']
+        press_workouts = [x for x in workout if x['lift_type'] == 'press']
         self.assertEqual(len(press_workouts), 0)
 
     def test_successful_workout_with_settings(self):
@@ -52,31 +52,52 @@ class Test(unittest.TestCase):
                 'squat': True,
                 'bench': True,
                 'press': False
-            }
+            },
+            'weights': [
+                45,
+                25,
+                10,
+                5,
+                2.5
+            ]
         }
         workout = main.generate_workout(previous_workouts, workout_settings)
 
-        squat = [x for x in reversed(workout) if x['lift_type'] == 'squat'][0]
+        squat = [x for x in workout if x['lift_type'] == 'squat'][0]
         self.assertEqual(squat['sets'][0]['weight'], 160)
         self.assertEqual(squat['sets'][1]['weight'], 145)
         self.assertEqual(squat['sets'][2]['weight'], 145)
         self.assertEqual(squat['sets'][0]['target_reps'], 5)
 
-        bench = [x for x in reversed(workout) if x['lift_type'] == 'bench'][0]
+        bench = [x for x in workout if x['lift_type'] == 'bench'][0]
         self.assertEqual(bench['sets'][0]['weight'], 122.5)
         self.assertEqual(bench['sets'][0]['target_reps'], 3)
 
-        dl = [x for x in reversed(workout) if x['lift_type'] == 'deadlift'][0]
+        dl = [x for x in workout if x['lift_type'] == 'deadlift'][0]
         self.assertEqual(dl['sets'][0]['weight'], 185)
         self.assertEqual(dl['sets'][0]['target_reps'], 5)
 
-        press_workouts = [x for x in reversed(workout) if x['lift_type'] == 'press']
+        press_workouts = [x for x in workout if x['lift_type'] == 'press']
         self.assertEqual(len(press_workouts), 0)
+
+    def test_successful_workout_with_lift_settings(self):
+        previous_workouts = mock_successful_workouts()
+        workout_settings = {
+            'lifts': {
+                'light_squat': True
+            }
+        }
+        workout = main.generate_workout(previous_workouts, workout_settings)
+
+        squat = [x for x in workout if x['lift_type'] == 'light_squat'][0]
+        # 80% of 160
+        self.assertEqual(squat['sets'][0]['weight'], 127.5)
+        self.assertEqual(squat['sets'][0]['target_reps'], 5)
 
     def test_unsuccessful_squats(self):
         previous_workouts = mock_fail_two()
         workout = main.generate_workout(previous_workouts, {})
-        squat = [x for x in reversed(workout) if x['lift_type'] == 'squat'][0]
+        squat = [x for x in workout if x['lift_type'] == 'squat'][0]
 
         expected = 5 * round((150*.8)/5)
         self.assertEqual(squat['sets'][0]['weight'], expected)
