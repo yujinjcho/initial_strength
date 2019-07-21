@@ -19,10 +19,7 @@ CHINUP = 'chinup'
 CLEAN = 'clean'
 
 def generate_workout(previous_workouts, workout_settings):
-
     # SQUATS
-    # ignore light squats for now
-    # just need to check if last squat was successful
     next_squat = generate_next_lift(previous_workouts, SQUAT, workout_settings)
 
     # PUSH
@@ -31,8 +28,10 @@ def generate_workout(previous_workouts, workout_settings):
 
     next_push = generate_next_lift(previous_workouts, next_push_lift_type, workout_settings)
 
-    # DEADLIFT only
-    next_pull = generate_next_lift(previous_workouts, DEADLIFT, workout_settings)
+    # PULL
+    recent_pull_workout = select_lift_type('pull', previous_workouts)
+    next_pull_lift_type = determine_next_pull(recent_pull_workout, workout_settings)
+    next_pull = generate_next_lift(previous_workouts, next_pull_lift_type, workout_settings)
 
     return [
         next_squat,
@@ -104,6 +103,35 @@ def select_lift_type(lift_type, previous_workouts):
                 last_workouts.append(lift)
 
     return last_workouts
+
+def determine_next_pull(pull_workouts, workout_settings):
+    if not pull_workouts:
+        return DEADLIFT
+
+    # if none enabled
+    clean_enabled = workout_settings.get('lifts', {}).get(CLEAN, False)
+    chinup_enabled = workout_settings.get('lifts', {}).get(CHINUP, False)
+
+    if not clean_enabled and not chinup_enabled:
+        return DEADLIFT
+
+    recent_pull_type = pull_workouts[0]['lift_type']
+    if (clean_enabled and not chinup_enabled) and recent_pull_type == DEADLIFT:
+        return CLEAN
+
+    if (not clean_enabled and chinup_enabled) and recent_pull_type == DEADLIFT:
+        return CHINUP
+
+    # means both are enabled
+
+    if recent_pull_type == DEADLIFT:
+        return CHINUP
+    elif recent_pull_type == CHINUP:
+        return CLEAN
+    elif recent_pull_type == CLEAN:
+        return DEADLIFT
+
+    return DEADLIFT
 
 def should_do_light_squat(previous_workouts, lift_type, workout_settings):
     if not lift_type == SQUAT:

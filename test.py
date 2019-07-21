@@ -106,6 +106,41 @@ class Test(unittest.TestCase):
         # don't do light squats if previously did
         self.assertTrue(not any(x['lift_type'] == 'light_squat' for x in workout_2))
 
+    def test_pulls(self):
+        previous_workouts = mock_successful_workouts()
+        workout_settings = {
+            'lifts': {
+                'chinup': True,
+                'clean': True
+            }
+        }
+        workout = main.generate_workout(previous_workouts, workout_settings)
+        chinup = [x for x in workout if x['lift_type'] == 'chinup']
+        self.assertTrue(len(chinup) > 0)
+
+        squat_2 = mock_lift('squat', 3, 5, 5, 160)
+        press_2 = mock_lift('bench', 3, 5, 5, 100)
+        pull_2 = mock_lift('chinup', 1, 5, 5, 160)
+        workout_2 = {
+            'workout': [squat_2, press_2, pull_2]
+        }
+        previous_workouts.append(workout_2)
+        next_workout = main.generate_workout(previous_workouts, workout_settings)
+        clean = [x for x in next_workout if x['lift_type'] == 'clean']
+        self.assertTrue(len(clean) > 0)
+
+        squat_3 = mock_lift('squat', 3, 5, 5, 165)
+        press_3 = mock_lift('bench', 3, 5, 5, 100)
+        pull_3 = mock_lift('clean', 1, 5, 5, 160)
+        workout_3 = {
+            'workout': [squat_3, press_3, pull_3]
+        }
+        previous_workouts.append(workout_3)
+        next_next_workout = main.generate_workout(previous_workouts, workout_settings)
+        dl = [x for x in next_next_workout if x['lift_type'] == 'deadlift']
+        self.assertTrue(len(dl) > 0)
+
+
     def test_unsuccessful_squats(self):
         previous_workouts = mock_fail_two()
         workout = main.generate_workout(previous_workouts, {})
