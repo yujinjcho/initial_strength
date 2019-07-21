@@ -80,7 +80,7 @@ class Test(unittest.TestCase):
         press_workouts = [x for x in workout if x['lift_type'] == 'press']
         self.assertEqual(len(press_workouts), 0)
 
-    def test_successful_workout_with_lift_settings(self):
+    def test_light_squats(self):
         previous_workouts = mock_successful_workouts()
         workout_settings = {
             'lifts': {
@@ -93,6 +93,18 @@ class Test(unittest.TestCase):
         # 80% of 160
         self.assertEqual(squat['sets'][0]['weight'], 127.5)
         self.assertEqual(squat['sets'][0]['target_reps'], 5)
+
+        squat_2 = mock_lift('light_squat', 3, 5, 5, 127.5)
+        press_2 = mock_lift('bench', 3, 5, 5, 100)
+        deadlift_2 = mock_lift('deadlift', 1, 5, 5, 160)
+        workout_2 = {
+            'workout': [squat_2, press_2, deadlift_2]
+        }
+        previous_workouts.append(workout_2)
+        workout_2 = main.generate_workout(previous_workouts, workout_settings)
+        squat = [x for x in workout if x['lift_type'] == 'light_squat'][0]
+        # don't do light squats if previously did
+        self.assertTrue(not any(x['lift_type'] == 'light_squat' for x in workout_2))
 
     def test_unsuccessful_squats(self):
         previous_workouts = mock_fail_two()
